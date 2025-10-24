@@ -26,38 +26,38 @@ async def test_memory_agent():
     
     # We supply a thread ID for short-term (within-thread) memory
     # We supply a user ID for long-term (across-thread) memory 
-    config = {"configurable": {"thread_id": "1", "user_id": "Lance"}}
+    config = {"configurable": {"thread_id": "1", "user_id": "Asis"}}
     # User input to create a profile memory
-    input_messages = [HumanMessage(content="My name is Lance. I live in SF with my wife. I have a 1 year old daughter.")]
+    input_messages = [HumanMessage(content="My name is Asis. I'm 34 years old, married with kids. I love sports, especially running and cycling.")]
     async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
         chunk["messages"][-1].pretty_print()
     
-    input_messages = [HumanMessage(content="My wife asked me to book swim lessons for the baby.")]
+    input_messages = [HumanMessage(content="I need to prepare for the upcoming marathon in 3 months and also help my son with his cycling competition.")]
     async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
         chunk["messages"][-1].pretty_print()
     
     # User input to update instructions for creating ToDos
-    input_messages = [HumanMessage(content="When creating or updating ToDo items, include specific local businesses / vendors.")]
+    input_messages = [HumanMessage(content="When creating or updating ToDo items, focus on sports training schedules and family activities.")]
     async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
         chunk["messages"][-1].pretty_print()
     
     # User input for a ToDo
-    input_messages = [HumanMessage(content="I need to fix the jammed electric Yale lock on the door.")]
+    input_messages = [HumanMessage(content="I need to schedule my weekly long runs and find a good cycling route for weekend training.")]
     async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
         chunk["messages"][-1].pretty_print()
     
     # User input to update an existing ToDo
-    input_messages = [HumanMessage(content="For the swim lessons, I need to get that done by end of November.")]
+    input_messages = [HumanMessage(content="For the marathon training, I need to increase my weekly mileage gradually and add strength training.")]
     async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
         chunk["messages"][-1].pretty_print()
     
-    input_messages = [HumanMessage(content="Need to call back City Toyota to schedule car service.")]
+    input_messages = [HumanMessage(content="I need to register my son for the youth cycling championship and get his bike serviced.")]
     async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
         chunk["messages"][-1].pretty_print()
     
     print("<<< Memories before the thread 2>>>")
     # Search for all memories across different namespaces
-    user_id = "Lance"
+    user_id = "Asis"
     todo_category = "general"
     
     # Search profile memories
@@ -85,12 +85,12 @@ async def test_memory_agent():
     print('MEmo after the 2nd thread:')
     # We supply a thread ID for short-term (within-thread) memory
     # We supply a user ID for long-term (across-thread) memory 
-    config = {"configurable": {"thread_id": "2", "user_id": "Lance"}}
+    config = {"configurable": {"thread_id": "2", "user_id": "Asis"}}
     input_messages = [HumanMessage(content="I have 30 minutes, what tasks can I get done?")]
     async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
         chunk["messages"][-1].pretty_print()        
     
-    input_messages = [HumanMessage(content="Yes, give me some options to call for swim lessons.")]
+    input_messages = [HumanMessage(content="Yes, give me some options for my marathon training and my son's cycling preparation.")]
     async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
         chunk["messages"][-1].pretty_print()
 
@@ -136,34 +136,34 @@ def test_production_agent():
         print("TEST 1: Creating User Profile")
         print("=" * 50)
         
-        config = {"configurable": {"thread_id": "1", "user_id": "Lance"}}
+        config = {"configurable": {"thread_id": "1", "user_id": "Asis"}}
         
         try:
             # User input to create a profile memory
-            input_messages = [HumanMessage(content="My name is Lance. I live in SF with my wife. I have a 1 year old daughter.")]
+            input_messages = [HumanMessage(content="My name is Asis. I'm 34 years old, married with kids. I love sports, especially running and cycling.")]
             async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
                 chunk["messages"][-1].pretty_print()
             
-            input_messages = [HumanMessage(content="My wife asked me to book swim lessons for the baby.")]
+            input_messages = [HumanMessage(content="I need to prepare for the upcoming marathon in 3 months and also help my son with his cycling competition.")]
             async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
                 chunk["messages"][-1].pretty_print()
             
             # User input to update instructions for creating ToDos
-            input_messages = [HumanMessage(content="When creating or updating ToDo items, include specific local businesses / vendors.")]
+            input_messages = [HumanMessage(content="When creating or updating ToDo items, focus on sports training schedules and family activities.")]
             async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
                 chunk["messages"][-1].pretty_print()
             
             # User input for a ToDo
-            input_messages = [HumanMessage(content="I need to fix the jammed electric Yale lock on the door.")]
+            input_messages = [HumanMessage(content="I need to schedule my weekly long runs and find a good cycling route for weekend training.")]
             async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
                 chunk["messages"][-1].pretty_print()
             
             # User input to update an existing ToDo
-            input_messages = [HumanMessage(content="For the swim lessons, I need to get that done by end of November.")]
+            input_messages = [HumanMessage(content="For the marathon training, I need to increase my weekly mileage gradually and add strength training.")]
             async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
                 chunk["messages"][-1].pretty_print()
             
-            input_messages = [HumanMessage(content="Need to call back City Toyota to schedule car service.")]
+            input_messages = [HumanMessage(content="I need to register my son for the youth cycling championship and get his bike serviced.")]
             async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
                 chunk["messages"][-1].pretty_print()
             
@@ -172,7 +172,7 @@ def test_production_agent():
             print("=" * 50)
             
             # Search for all memories across different namespaces
-            user_id = "Lance"
+            user_id = "Asis"
             todo_category = "general"
             
             # Search profile memories
