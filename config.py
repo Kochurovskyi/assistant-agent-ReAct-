@@ -42,6 +42,13 @@ class AppConfig:
         self.user_id = os.getenv("USER_ID", "default-user")
         self.todo_category = os.getenv("TODO_CATEGORY", "general")
         
+        # FastAPI server configuration
+        self.server_host = os.getenv("SERVER_HOST", "0.0.0.0")
+        self.server_port = int(os.getenv("SERVER_PORT", "8000"))
+        self.cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
+        self.enable_docs = os.getenv("ENABLE_DOCS", "true").lower() == "true"
+        self.websocket_max_connections = int(os.getenv("WEBSOCKET_MAX_CONNECTIONS", "100"))
+        
         # Validate required environment variables
         if not self.google_api_key:
             raise ValueError("GOOGLE_API_KEY environment variable is required")
