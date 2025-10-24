@@ -1,4 +1,5 @@
 """Node functions for the memory agent graph."""
+import asyncio
 import time
 import traceback
 from datetime import datetime
@@ -21,7 +22,14 @@ from schemas.memory import UpdateMemory
 model = initialize_model()
 profile_extractor = create_profile_extractor(model)
 
-def task_asis(state: MessagesState, config: RunnableConfig, store: BaseStore):
+# Async helper function for memory retrieval
+async def _search_memory_async(store: BaseStore, namespace):
+    """Async wrapper for store search operations."""
+    # Since BaseStore doesn't have async methods, we'll use asyncio.to_thread
+    # to run the sync operation in a thread pool
+    return await asyncio.to_thread(store.search, namespace)
+
+async def task_asis(state: MessagesState, config: RunnableConfig, store: BaseStore):
     """Load memories from the store and use them to personalize the chatbot's response."""
     start_time = time.time()
     
@@ -34,27 +42,36 @@ def task_asis(state: MessagesState, config: RunnableConfig, store: BaseStore):
         todo_category = configurable.todo_category
         task_asis_role = configurable.task_asis_role
 
-        # Retrieve profile memory from the store
-        namespace = ("profile", todo_category, user_id)
-        memories = store.search(namespace)
-        if memories:
-            user_profile = memories[0].value
+        # Parallel memory retrieval using asyncio.gather()
+        profile_namespace = ("profile", todo_category, user_id)
+        todo_namespace = ("todo", todo_category, user_id)
+        instructions_namespace = ("instructions", todo_category, user_id)
+        
+        # Create async tasks for parallel execution
+        profile_task = asyncio.create_task(_search_memory_async(store, profile_namespace))
+        todo_task = asyncio.create_task(_search_memory_async(store, todo_namespace))
+        instructions_task = asyncio.create_task(_search_memory_async(store, instructions_namespace))
+        
+        # Wait for all memory retrievals to complete
+        profile_memories, todo_memories, instructions_memories = await asyncio.gather(
+            profile_task, todo_task, instructions_task
+        )
+        
+        # Process profile memory
+        if profile_memories:
+            user_profile = profile_memories[0].value
             logger.info(f"Retrieved profile for user {user_id}")
         else:
             user_profile = None
             logger.info(f"No profile found for user {user_id}")
 
-        # Retrieve todo memory from the store
-        namespace = ("todo", todo_category, user_id)
-        memories = store.search(namespace)
-        todo = "\n".join(f"{mem.value}" for mem in memories)
-        logger.info(f"Retrieved {len(memories)} todo items for user {user_id}")
+        # Process todo memory
+        todo = "\n".join(f"{mem.value}" for mem in todo_memories)
+        logger.info(f"Retrieved {len(todo_memories)} todo items for user {user_id}")
 
-        # Retrieve custom instructions
-        namespace = ("instructions", todo_category, user_id)
-        memories = store.search(namespace)
-        if memories:
-            instructions = memories[0].value
+        # Process instructions memory
+        if instructions_memories:
+            instructions = instructions_memories[0].value
             logger.info(f"Retrieved instructions for user {user_id}")
         else:
             instructions = ""
@@ -67,8 +84,8 @@ def task_asis(state: MessagesState, config: RunnableConfig, store: BaseStore):
             instructions=instructions
         )
 
-        # Respond using memory as well as the chat history
-        response = model.bind_tools([UpdateMemory], parallel_tool_calls=False).invoke(
+        # Async LLM invocation
+        response = await model.bind_tools([UpdateMemory], parallel_tool_calls=False).ainvoke(
             [SystemMessage(content=system_msg)] + state["messages"]
         )
         
@@ -84,7 +101,7 @@ def task_asis(state: MessagesState, config: RunnableConfig, store: BaseStore):
         metrics.record_error()
         raise
 
-def update_profile(state: MessagesState, config: RunnableConfig, store: BaseStore):
+async def update_profile(state: MessagesState, config: RunnableConfig, store: BaseStore):
     """Reflect on the chat history and update the memory collection."""
     start_time = time.time()
     
@@ -99,8 +116,8 @@ def update_profile(state: MessagesState, config: RunnableConfig, store: BaseStor
         # Define the namespace for the memories
         namespace = ("profile", todo_category, user_id)
 
-        # Retrieve the most recent memories for context
-        existing_items = store.search(namespace)
+        # Retrieve the most recent memories for context (async)
+        existing_items = await asyncio.to_thread(store.search, namespace)
         logger.info(f"Found {len(existing_items)} existing profile items for user {user_id}")
 
         # Format the existing memories for the Trustcall extractor
@@ -117,16 +134,16 @@ def update_profile(state: MessagesState, config: RunnableConfig, store: BaseStor
             messages=[SystemMessage(content=TRUSTCALL_INSTRUCTION_FORMATTED)] + state["messages"][:-1]
         ))
 
-        # Invoke the extractor
-        result = profile_extractor.invoke({
+        # Async extractor invocation
+        result = await asyncio.to_thread(profile_extractor.invoke, {
             "messages": updated_messages, 
             "existing": existing_memories
         })
 
-        # Save the memories from Trustcall to the store
+        # Save the memories from Trustcall to the store (async)
         import uuid
         for r, rmeta in zip(result["responses"], result["response_metadata"]):
-            store.put(
+            await asyncio.to_thread(store.put,
                 namespace,
                 rmeta.get("json_doc_id", str(uuid.uuid4())),
                 r.model_dump(mode="json"),
@@ -145,7 +162,7 @@ def update_profile(state: MessagesState, config: RunnableConfig, store: BaseStor
         metrics.record_error()
         raise
 
-def update_todos(state: MessagesState, config: RunnableConfig, store: BaseStore):
+async def update_todos(state: MessagesState, config: RunnableConfig, store: BaseStore):
     """Reflect on the chat history and update the memory collection."""
     
     # Get the user ID from the config
@@ -156,8 +173,8 @@ def update_todos(state: MessagesState, config: RunnableConfig, store: BaseStore)
     # Define the namespace for the memories
     namespace = ("todo", todo_category, user_id)
 
-    # Retrieve the most recent memories for context
-    existing_items = store.search(namespace)
+    # Retrieve the most recent memories for context (async)
+    existing_items = await asyncio.to_thread(store.search, namespace)
 
     # Format the existing memories for the Trustcall extractor
     tool_name = "ToDo"
@@ -179,16 +196,16 @@ def update_todos(state: MessagesState, config: RunnableConfig, store: BaseStore)
     # Create the Trustcall extractor for updating the ToDo list 
     todo_extractor = create_todo_extractor(model, tool_name).with_listeners(on_end=sniffer)
 
-    # Invoke the extractor
-    result = todo_extractor.invoke({
+    # Async extractor invocation
+    result = await asyncio.to_thread(todo_extractor.invoke, {
         "messages": updated_messages, 
         "existing": existing_memories
     })
 
-    # Save the memories from Trustcall to the store
+    # Save the memories from Trustcall to the store (async)
     import uuid
     for r, rmeta in zip(result["responses"], result["response_metadata"]):
-        store.put(
+        await asyncio.to_thread(store.put,
             namespace,
             rmeta.get("json_doc_id", str(uuid.uuid4())),
             r.model_dump(mode="json"),
@@ -201,7 +218,7 @@ def update_todos(state: MessagesState, config: RunnableConfig, store: BaseStore)
     todo_update_msg = extract_tool_info(sniffer.called_tools, tool_name)
     return {"messages": [{"role": "tool", "content": todo_update_msg, "tool_call_id": tool_calls[0]['id']}]}
 
-def update_instructions(state: MessagesState, config: RunnableConfig, store: BaseStore):
+async def update_instructions(state: MessagesState, config: RunnableConfig, store: BaseStore):
     """Reflect on the chat history and update the memory collection."""
     
     # Get the user ID from the config
@@ -211,15 +228,15 @@ def update_instructions(state: MessagesState, config: RunnableConfig, store: Bas
     
     namespace = ("instructions", todo_category, user_id)
 
-    existing_memory = store.get(namespace, "user_instructions")
+    existing_memory = await asyncio.to_thread(store.get, namespace, "user_instructions")
         
     # Format the memory in the system prompt
     system_msg = CREATE_INSTRUCTIONS.format(current_instructions=existing_memory.value if existing_memory else None)
-    new_memory = model.invoke([SystemMessage(content=system_msg)] + state['messages'][:-1] + [HumanMessage(content="Please update the instructions based on the conversation")])
+    new_memory = await model.ainvoke([SystemMessage(content=system_msg)] + state['messages'][:-1] + [HumanMessage(content="Please update the instructions based on the conversation")])
 
-    # Overwrite the existing memory in the store 
+    # Overwrite the existing memory in the store (async)
     key = "user_instructions"
-    store.put(namespace, key, {"memory": new_memory.content})
+    await asyncio.to_thread(store.put, namespace, key, {"memory": new_memory.content})
     tool_calls = state['messages'][-1].tool_calls
     # Return tool message with update verification
     return {"messages": [{"role": "tool", "content": "updated instructions", "tool_call_id": tool_calls[0]['id']}]}

@@ -1,8 +1,18 @@
 """Test functions for the memory agent."""
+import asyncio
+import pytest
 from langchain_core.messages import HumanMessage
 from graph.builder import graph
 
-def test_memory_agent():
+@pytest.fixture(scope="session")
+def event_loop():
+    """Create an instance of the default event loop for the test session."""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
+@pytest.mark.asyncio
+async def test_memory_agent():
     """Comprehensive test of the memory agent functionality"""
     
     print("=" * 80)
@@ -19,30 +29,30 @@ def test_memory_agent():
     config = {"configurable": {"thread_id": "1", "user_id": "Lance"}}
     # User input to create a profile memory
     input_messages = [HumanMessage(content="My name is Lance. I live in SF with my wife. I have a 1 year old daughter.")]
-    for chunk in graph.stream({"messages": input_messages}, config, stream_mode="values"): 
+    async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
         chunk["messages"][-1].pretty_print()
     
     input_messages = [HumanMessage(content="My wife asked me to book swim lessons for the baby.")]
-    for chunk in graph.stream({"messages": input_messages}, config, stream_mode="values"): 
+    async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
         chunk["messages"][-1].pretty_print()
     
     # User input to update instructions for creating ToDos
     input_messages = [HumanMessage(content="When creating or updating ToDo items, include specific local businesses / vendors.")]
-    for chunk in graph.stream({"messages": input_messages}, config, stream_mode="values"): 
+    async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
         chunk["messages"][-1].pretty_print()
     
     # User input for a ToDo
     input_messages = [HumanMessage(content="I need to fix the jammed electric Yale lock on the door.")]
-    for chunk in graph.stream({"messages": input_messages}, config, stream_mode="values"): 
+    async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
         chunk["messages"][-1].pretty_print()
     
     # User input to update an existing ToDo
     input_messages = [HumanMessage(content="For the swim lessons, I need to get that done by end of November.")]
-    for chunk in graph.stream({"messages": input_messages}, config, stream_mode="values"): 
+    async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
         chunk["messages"][-1].pretty_print()
     
     input_messages = [HumanMessage(content="Need to call back City Toyota to schedule car service.")]
-    for chunk in graph.stream({"messages": input_messages}, config, stream_mode="values"): 
+    async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
         chunk["messages"][-1].pretty_print()
     
     print("<<< Memories before the thread 2>>>")
@@ -77,11 +87,11 @@ def test_memory_agent():
     # We supply a user ID for long-term (across-thread) memory 
     config = {"configurable": {"thread_id": "2", "user_id": "Lance"}}
     input_messages = [HumanMessage(content="I have 30 minutes, what tasks can I get done?")]
-    for chunk in graph.stream({"messages": input_messages}, config, stream_mode="values"): 
+    async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
         chunk["messages"][-1].pretty_print()        
     
     input_messages = [HumanMessage(content="Yes, give me some options to call for swim lessons.")]
-    for chunk in graph.stream({"messages": input_messages}, config, stream_mode="values"): 
+    async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
         chunk["messages"][-1].pretty_print()
 
     print("Profile memories:")
@@ -102,7 +112,8 @@ def test_memory_agent():
     for m in instruction_memories:  
         print(f"Instructions: {m.value}")
 
-def test_production_agent():
+@pytest.mark.asyncio
+async def test_production_agent():
     """Production-ready test of the memory agent functionality"""
     
     print("=" * 80)
@@ -129,30 +140,30 @@ def test_production_agent():
     try:
         # User input to create a profile memory
         input_messages = [HumanMessage(content="My name is Lance. I live in SF with my wife. I have a 1 year old daughter.")]
-        for chunk in graph.stream({"messages": input_messages}, config, stream_mode="values"): 
+        async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
             chunk["messages"][-1].pretty_print()
         
         input_messages = [HumanMessage(content="My wife asked me to book swim lessons for the baby.")]
-        for chunk in graph.stream({"messages": input_messages}, config, stream_mode="values"): 
+        async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
             chunk["messages"][-1].pretty_print()
         
         # User input to update instructions for creating ToDos
         input_messages = [HumanMessage(content="When creating or updating ToDo items, include specific local businesses / vendors.")]
-        for chunk in graph.stream({"messages": input_messages}, config, stream_mode="values"): 
+        async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
             chunk["messages"][-1].pretty_print()
         
         # User input for a ToDo
         input_messages = [HumanMessage(content="I need to fix the jammed electric Yale lock on the door.")]
-        for chunk in graph.stream({"messages": input_messages}, config, stream_mode="values"): 
+        async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
             chunk["messages"][-1].pretty_print()
         
         # User input to update an existing ToDo
         input_messages = [HumanMessage(content="For the swim lessons, I need to get that done by end of November.")]
-        for chunk in graph.stream({"messages": input_messages}, config, stream_mode="values"): 
+        async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
             chunk["messages"][-1].pretty_print()
         
         input_messages = [HumanMessage(content="Need to call back City Toyota to schedule car service.")]
-        for chunk in graph.stream({"messages": input_messages}, config, stream_mode="values"): 
+        async for chunk in graph.astream({"messages": input_messages}, config, stream_mode="values"): 
             chunk["messages"][-1].pretty_print()
         
         print("\n" + "=" * 50)
