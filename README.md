@@ -1,6 +1,8 @@
-# Asis Memory Agent
+# Asistant (Memory) Agent
 
 A production-ready memory agent built with LangGraph and FastAPI, featuring persistent memory management, user profiles, intelligent task management, and REST API endpoints.
+
+![Asistant Agent Workflow](graph.png)
 
 ## Features
 
